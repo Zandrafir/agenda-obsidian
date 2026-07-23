@@ -1,6 +1,6 @@
 // Preencher após criar o projeto Supabase (Configurações > API).
-const SUPABASE_URL = 'https://SEU-PROJETO.supabase.co';
-const SUPABASE_KEY = 'SUA-ANON-KEY';
+const SUPABASE_URL = 'https://bgnitauztmzqpxywzcho.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJnbml0YXV6dG16cXB4eXd6Y2hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4MzI2NDUsImV4cCI6MjEwMDQwODY0NX0.jLLzP6wr9QDKxB0JknptmvC-kZSRF_0knF6DWgn_WiU';
 const IS_CONFIGURED = !SUPABASE_URL.includes('SEU-PROJETO');
 
 const REST_URL = `${SUPABASE_URL}/rest/v1`;
