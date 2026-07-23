@@ -1,7 +1,7 @@
 import { Tasks, Events, PushSubscriptions, TaskOccurrences } from './supabase-client.js';
 import { chooseVaultFolder, getSavedVaultFolderSilent, requestSavedVaultPermission, scanVaultTasks, writeTaskDoneBackToFile } from './fs-obsidian.js';
 
-const VAPID_PUBLIC_KEY = 'BAPUfQl6z7y6oxsKp8QdaiiurMvqhBlA549o6T3M2gN0k1zzODZfa1FY2T2I6sBdAc3rkFkbIZXv7VPMWPgLbY8';
+const VAPID_PUBLIC_KEY = 'BFkVAhg_G8pVP2DuOPsGypb_NFBLm4mlsGvXcDlIUzqMSip3mU0U84KVyCHCkrJm5o8XvkY0x42kC5BceMX8SyU';
 const WEEKDAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 let vaultHandle = null;

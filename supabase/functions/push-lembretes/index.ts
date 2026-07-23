@@ -198,12 +198,14 @@ async function sendWebPush(subscription: { endpoint: string; keys: { p256dh: str
   }
 }
 
-async function sendToAllSubscriptions(subscriptions: any[], payload: { title: string; body: string }) {
+async function sendToAllSubscriptions(subscriptions: any[], payload: { title: string; body: string }, errors: string[]) {
   for (const sub of subscriptions) {
     try {
       await sendWebPush(sub.subscription, payload);
     } catch (err) {
-      console.error('push falhou para uma inscrição:', err);
+      const msg = `sub#${sub.id}: ${err instanceof Error ? err.message : String(err)}`;
+      console.error('push falhou para uma inscrição:', msg);
+      errors.push(msg);
     }
   }
 }
@@ -220,6 +222,7 @@ Deno.serve(async () => {
 
   const subscriptions = await rest('push_subscriptions?select=id,subscription');
   let sentCount = 0;
+  const errors: string[] = [];
 
   if (currentHour >= NAG_START_HOUR) {
     // Cobrança insistente: sem dedup, repete a cada execução do cron enquanto
@@ -231,7 +234,7 @@ Deno.serve(async () => {
         ? `"${openTasks[0].title}" ainda está pendente hoje!`
         : `Você ainda tem ${openTasks.length} tarefas pendentes hoje!`;
 
-      await sendToAllSubscriptions(subscriptions, { title: '⏰ Pendências do dia', body });
+      await sendToAllSubscriptions(subscriptions, { title: '⏰ Pendências do dia', body }, errors);
       sentCount += 1;
     }
   } else {
@@ -255,11 +258,14 @@ Deno.serve(async () => {
     ];
 
     for (const notif of notifications) {
-      await sendToAllSubscriptions(subscriptions, { title: notif.title, body: notif.body });
+      await sendToAllSubscriptions(subscriptions, { title: notif.title, body: notif.body }, errors);
       await restPost('push_log', notif.kind === 'task' ? { task_id: notif.id } : { event_id: notif.id });
       sentCount += 1;
     }
   }
 
-  return new Response(JSON.stringify({ sent: sentCount }), { headers: { 'Content-Type': 'application/json' } });
+  return new Response(
+    JSON.stringify({ sent: sentCount, subscriptions: subscriptions.length, errors }),
+    { headers: { 'Content-Type': 'application/json' } },
+  );
 });
