@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Agenda + Obsidian</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0d1117" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div>
+        <div class="header-title">Agenda</div>
+        <div class="header-subtitle" id="today-label"></div>
+      </div>
+      <div class="header-avatar">A</div>
+    </header>
+
+    <div class="progress-card">
+      <div class="progress-card-row">
+        <div class="progress-card-label">Progresso do dia</div>
+        <div id="progress-reading" class="progress-card-count" aria-live="polite"></div>
+      </div>
+      <div class="progress-chain" id="progress-chain"></div>
+    </div>
+
+    <nav class="tabs" id="type-tabs">
+      <button class="tab-btn active" data-type="tarefa">Tarefa</button>
+      <button class="tab-btn" data-type="compromisso">Compromisso</button>
+    </nav>
+
+    <div id="items-list"></div>
+
+    <form id="form-item" class="quick-form" data-type="tarefa">
+      <div class="form-row">
+        <input type="text" name="title" placeholder="Novo item" required />
+        <input type="date" name="date" class="field-tarefa-date" />
+        <input type="date" name="date_evento" class="field-compromisso-date" />
+        <input type="time" name="time" class="field-compromisso-time" />
+      </div>
+      <input type="text" name="tags" placeholder="tags separadas por vírgula" class="field-tarefa-tags" />
+      <textarea name="notes" placeholder="Notas (opcional)" class="field-compromisso-notes"></textarea>
+
+      <div class="field-tarefa-repeat">
+        <div class="repeat-label">Repetir</div>
+        <div class="weekday-picker" id="weekday-picker">
+          <button type="button" class="weekday-btn" data-day="0">D</button>
+          <button type="button" class="weekday-btn" data-day="1">S</button>
+          <button type="button" class="weekday-btn" data-day="2">T</button>
+          <button type="button" class="weekday-btn" data-day="3">Q</button>
+          <button type="button" class="weekday-btn" data-day="4">Q</button>
+          <button type="button" class="weekday-btn" data-day="5">S</button>
+          <button type="button" class="weekday-btn" data-day="6">S</button>
+        </div>
+      </div>
+      <p class="status field-error" id="title-error" hidden>Título obrigatório</p>
+      <button type="submit" id="btn-add-item">Adicionar tarefa</button>
+    </form>
+
+    <div class="settings-section">
+      <div class="settings-card">
+        <div class="settings-card-row">
+          <div class="settings-card-title">Vault</div>
+          <div class="settings-card-value" id="vault-value" style="color: var(--text-secondary);">Não conectado</div>
+        </div>
+        <div class="settings-card-desc" id="vault-desc">Conecte a pasta do seu vault do Obsidian para importar tarefas em <code>- [ ]</code>.</div>
+        <button id="btn-vault-action">Conectar</button>
+      </div>
+
+      <div class="settings-card">
+        <div class="settings-card-row">
+          <div class="settings-card-title">Notificações</div>
+          <div class="settings-card-value" id="push-value" style="color: var(--error-soft);">Negado</div>
+        </div>
+        <div class="settings-card-desc">Lembretes de agenda no seu dispositivo.</div>
+        <button id="btn-enable-push">Permitir</button>
+      </div>
+
+      <p id="vault-status" class="status"></p>
+      <p id="push-status" class="status"></p>
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

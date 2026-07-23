@@ -1,0 +1,365 @@
+:root {
+  --bg: #0d1117;
+  --card: #161b22;
+  --card-alt: #1c2129;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-tertiary: #7d8590;
+  --accent: #7c3aed;
+  --accent-hover: #6d28d9;
+  --accent-light: #a78bfa;
+  --success: #3fb950;
+  --success-strong: #238636;
+  --success-strong-hover: #2ea043;
+  --error: #f85149;
+  --error-soft: #ffa198;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@keyframes ponte-spin { to { transform: rotate(360deg); } }
+@keyframes ponte-shimmer { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+@keyframes ponte-pop { 0% { transform: scale(1); } 45% { transform: scale(1.35); } 100% { transform: scale(1); } }
+@keyframes ponte-itemIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ---------- Layout geral ---------- */
+
+body {
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.page {
+  width: 420px;
+  max-width: 100%;
+  padding: 24px 20px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-title { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; color: var(--text); }
+.header-subtitle { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+.header-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: var(--card-alt);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--accent-light);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* ---------- Abas em pílula (filtro Tarefa/Compromisso) ---------- */
+
+.tabs {
+  display: flex;
+  background: var(--card);
+  border-radius: 999px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.tab-btn {
+  flex: 1;
+  min-width: max-content;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-secondary);
+  transition: background .2s ease, color .2s ease;
+}
+
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { background: var(--card-alt); color: var(--text); }
+
+/* ---------- Progresso do dia ---------- */
+
+.progress-card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.progress-card-row { display: flex; align-items: center; justify-content: space-between; }
+.progress-card-label { font-size: 12px; color: var(--text-secondary); }
+.progress-card-count { font-size: 11px; font-weight: 600; }
+
+.progress-chain { display: flex; gap: 6px; flex-wrap: wrap; }
+.progress-dot { width: 10px; height: 10px; border-radius: 999px; background: var(--card-alt); }
+
+/* ---------- Lista de itens ---------- */
+
+#items-list { display: flex; flex-direction: column; gap: 8px; }
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--card);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  transition: transform .18s ease, box-shadow .18s ease;
+  animation: ponte-itemIn .3s ease;
+}
+
+.item:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28); }
+
+.item-check {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, transform .2s ease;
+}
+
+.item-check:hover { border-color: var(--accent); }
+
+.item.done .item-check {
+  border-color: var(--success);
+  background: var(--success-strong);
+}
+
+.item.done .item-check:hover { background: var(--success-strong-hover); }
+
+.item-check svg { display: none; }
+.item.done .item-check svg { display: block; }
+
+.item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.item-title { font-size: 14px; color: var(--text); }
+.item.done .item-title { color: var(--text-tertiary); text-decoration: line-through; }
+.item-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.item-time { font-size: 11px; color: var(--text-tertiary); }
+
+.item-edit { display: none; gap: 6px; }
+.item.editing .item-view { display: none; }
+.item.editing .item-edit { display: flex; }
+
+.item-edit input {
+  background: var(--card-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--text);
+  outline: none;
+}
+.item-edit input:focus { border-color: var(--accent); }
+
+.btn-edit { font-size: 13px; }
+.btn-edit:hover { color: var(--accent-light); }
+
+.tag {
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--card-alt);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.badge { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.badge-obsidian { background: rgba(124, 58, 237, .18); color: var(--accent-light); }
+.badge-manual { background: rgba(63, 185, 80, .18); color: var(--success); }
+.badge-repeat { background: rgba(167, 139, 250, .18); color: var(--accent-light); }
+
+.btn-icon {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  opacity: .6;
+  font-size: 14px;
+  padding: 4px;
+  flex-shrink: 0;
+}
+.btn-icon:hover { opacity: 1; color: var(--error); }
+
+.empty {
+  text-align: center;
+  padding: 20px 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* ---------- Formulários ---------- */
+
+.quick-form { display: flex; flex-direction: column; gap: 8px; }
+
+.form-row { display: flex; gap: 8px; }
+.form-row input { flex: 1; min-width: 0; }
+.form-row input[type="date"],
+.form-row input[type="time"] { flex: 0 0 auto; width: 130px; }
+
+.field-tarefa-date,
+.field-compromisso-date,
+.field-compromisso-time,
+.field-tarefa-tags,
+.field-compromisso-notes,
+.field-tarefa-repeat { display: none; }
+
+form[data-type="tarefa"] .field-tarefa-tags,
+form[data-type="tarefa"] .field-tarefa-repeat { display: block; }
+
+form[data-type="compromisso"] .field-compromisso-notes { display: block; }
+
+form[data-type="tarefa"] .form-row .field-tarefa-date { display: block; }
+form[data-type="compromisso"] .form-row .field-compromisso-date,
+form[data-type="compromisso"] .form-row .field-compromisso-time { display: block; }
+
+/* Quando algum dia da semana está selecionado, a tarefa é recorrente — esconde a data avulsa */
+form[data-type="tarefa"].has-repeat .form-row .field-tarefa-date { display: none; }
+
+.field-error { color: var(--error-soft); }
+
+.repeat-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+
+.weekday-picker { display: flex; gap: 6px; }
+
+.weekday-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+
+.weekday-btn:hover { border-color: var(--accent); color: var(--text); }
+
+.weekday-btn.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.quick-form input,
+.quick-form textarea {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s;
+  font-family: inherit;
+}
+
+.quick-form input:focus,
+.quick-form textarea:focus { border-color: var(--accent); }
+
+.quick-form button {
+  border: none;
+  padding: 10px 0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--accent);
+  color: #fff;
+  transition: background .15s;
+}
+
+.quick-form button:hover { background: var(--accent-hover); }
+.quick-form button:active { transform: scale(0.99); }
+
+h2 { font-size: 14px; font-weight: 600; color: var(--text-secondary); margin: 0; }
+
+/* ---------- Cards de configuração (Obsidian / Config) ---------- */
+
+.settings-section { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+
+.settings-card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.settings-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28); }
+
+.settings-card-row { display: flex; align-items: center; justify-content: space-between; }
+.settings-card-title { font-size: 14px; color: var(--text); font-weight: 600; }
+.settings-card-value { font-size: 11px; font-weight: 600; }
+.settings-card-desc { font-size: 11px; color: var(--text-tertiary); }
+
+.settings-card button {
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  padding: 9px 0;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: var(--accent-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background .15s;
+}
+
+.settings-card button:hover { background: var(--card-alt); }
+.settings-card button:disabled { cursor: default; opacity: .7; }
+
+.spinner {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent-light);
+  animation: ponte-spin .7s linear infinite;
+}
+
+.status { font-size: 11px; color: var(--text-tertiary); margin: 0; }
