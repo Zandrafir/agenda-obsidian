@@ -1,10 +1,11 @@
 import { Tasks, Events, PushSubscriptions, TaskOccurrences } from './supabase-client.js';
-import { chooseVaultFolder, getSavedVaultFolder, scanVaultTasks, writeTaskDoneBackToFile } from './fs-obsidian.js';
+import { chooseVaultFolder, getSavedVaultFolderSilent, requestSavedVaultPermission, scanVaultTasks, writeTaskDoneBackToFile } from './fs-obsidian.js';
 
 const VAPID_PUBLIC_KEY = 'BAPUfQl6z7y6oxsKp8QdaiiurMvqhBlA549o6T3M2gN0k1zzODZfa1FY2T2I6sBdAc3rkFkbIZXv7VPMWPgLbY8';
 const WEEKDAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 let vaultHandle = null;
+let vaultHandlePendingPermission = null; // handle salvo mas sem permissão ainda (precisa de clique)
 let cachedTasks = [];
 let cachedEvents = [];
 let cachedOccurrences = {}; // task_id -> done (para a data de hoje)
@@ -287,6 +288,7 @@ function initItemForm() {
 
 // ---------- Vault (conectar / sincronizar Obsidian) ----------
 function setVaultConnected(name) {
+  vaultHandlePendingPermission = null;
   const valueEl = el('#vault-value');
   valueEl.textContent = 'Conectado';
   valueEl.style.color = 'var(--success)';
@@ -294,10 +296,30 @@ function setVaultConnected(name) {
   el('#btn-vault-action').textContent = 'Sincronizar';
 }
 
+function setVaultNeedsReconnect(handle) {
+  vaultHandlePendingPermission = handle;
+  const valueEl = el('#vault-value');
+  valueEl.textContent = 'Reconectar';
+  valueEl.style.color = 'var(--accent-light)';
+  el('#vault-desc').textContent = `Pasta salva: ${handle.name} — clique para reconectar (o navegador exige um clique para reconfirmar o acesso).`;
+  el('#btn-vault-action').textContent = 'Reconectar';
+}
+
 function initVaultCard() {
   el('#btn-vault-action').addEventListener('click', async () => {
     const btn = el('#btn-vault-action');
     const statusEl = el('#vault-status');
+
+    if (vaultHandlePendingPermission) {
+      const granted = await requestSavedVaultPermission(vaultHandlePendingPermission);
+      if (granted) {
+        vaultHandle = vaultHandlePendingPermission;
+        setVaultConnected(vaultHandle.name);
+      } else {
+        statusEl.textContent = 'Permissão não concedida. Tente novamente ou escolha a pasta de novo.';
+      }
+      return;
+    }
 
     if (!vaultHandle) {
       try {
@@ -343,8 +365,17 @@ function initVaultCard() {
 }
 
 async function tryReconnectVault() {
-  vaultHandle = await getSavedVaultFolder();
-  if (vaultHandle) setVaultConnected(vaultHandle.name);
+  const { handle, granted } = await getSavedVaultFolderSilent();
+  if (!handle) return;
+
+  if (granted) {
+    vaultHandle = handle;
+    setVaultConnected(handle.name);
+  } else {
+    // Não dá pra chamar requestPermission aqui — precisa vir de um clique do
+    // usuário. Só sinaliza que existe uma pasta salva esperando reconexão.
+    setVaultNeedsReconnect(handle);
+  }
 }
 
 // ---------- Push notifications ----------
@@ -400,6 +431,12 @@ async function initPush() {
     }
 
     try {
+      // Se já existe uma inscrição (possivelmente presa a uma chave VAPID antiga),
+      // remove antes de criar uma nova — evita "invalid JWT" quando a chave do
+      // servidor muda e a assinatura antiga não bate mais com o servidor push.
+      const existing = await reg.pushManager.getSubscription();
+      if (existing) await existing.unsubscribe();
+
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),

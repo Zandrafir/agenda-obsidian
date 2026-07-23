@@ -46,16 +46,26 @@ async function chooseVaultFolder() {
   return handle;
 }
 
-/** Recupera o handle salvo, revalidando a permissão. Retorna null se nunca foi escolhido. */
-async function getSavedVaultFolder() {
+/**
+ * Recupera o handle salvo checando a permissão de forma silenciosa (sem gesto
+ * do usuário). Navegadores exigem um clique real para *conceder* permissão —
+ * chamar requestPermission() automaticamente ao carregar a página falha
+ * silenciosamente (principalmente no Chrome Android). Por isso aqui só
+ * consultamos o estado atual; se não estiver concedida, quem chama deve
+ * pedir para o usuário clicar em algo antes de chamar requestSavedVaultPermission().
+ */
+async function getSavedVaultFolderSilent() {
   const handle = await idbGet(HANDLE_KEY);
-  if (!handle) return null;
+  if (!handle) return { handle: null, granted: false };
 
   const perm = await handle.queryPermission({ mode: 'readwrite' });
-  if (perm === 'granted') return handle;
+  return { handle, granted: perm === 'granted' };
+}
 
+/** Deve ser chamado a partir de um clique do usuário — só assim o navegador mostra o prompt de permissão. */
+async function requestSavedVaultPermission(handle) {
   const req = await handle.requestPermission({ mode: 'readwrite' });
-  return req === 'granted' ? handle : null;
+  return req === 'granted';
 }
 
 /** Percorre recursivamente o diretório coletando arquivos .md com seu caminho relativo. */
@@ -106,7 +116,8 @@ async function writeTaskDoneBackToFile(rootHandle, sourceFile, lineNumber, done)
 
 export {
   chooseVaultFolder,
-  getSavedVaultFolder,
+  getSavedVaultFolderSilent,
+  requestSavedVaultPermission,
   scanVaultTasks,
   writeTaskDoneBackToFile,
 };
