@@ -70,6 +70,10 @@ Deno.serve(async () => {
   const now = new Date();
   const { dateStr: today, hour: currentHour } = localDateAndHour(now, TIMEZONE);
   const in20min = new Date(now.getTime() + 20 * 60 * 1000).toISOString();
+  // Início da janela no passado: cobre o caso de um evento criado com pouca
+  // antecedência cujo horário já passou até o próximo tick do cron (que roda
+  // a cada 5min em marcos fixos, não sob demanda na criação).
+  const lookback30min = new Date(now.getTime() - 30 * 60 * 1000).toISOString();
   const nowIso = now.toISOString();
 
   const subscriptions = await rest('push_subscriptions?select=id,subscription');
@@ -92,7 +96,7 @@ Deno.serve(async () => {
     // Antes das 21h: aviso único por tarefa/evento (deduplicado via push_log).
     const [dueTasks, upcomingEvents, alreadySent] = await Promise.all([
       rest(`tasks?select=id,title&due_date=eq.${today}&done=eq.false`),
-      rest(`events?select=id,title,start_at&start_at=gte.${nowIso}&start_at=lte.${in20min}`),
+      rest(`events?select=id,title,start_at&start_at=gte.${lookback30min}&start_at=lte.${in20min}`),
       rest('push_log?select=task_id,event_id'),
     ]);
 
