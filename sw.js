@@ -1,4 +1,4 @@
-const CACHE_NAME = 'agenda-obsidian-v4';
+const CACHE_NAME = 'agenda-obsidian-v5';
 const CORE_ASSETS = ['/index.html', '/style.css', '/js/app.js', '/js/supabase-client.js', '/js/markdown-parser.js', '/js/fs-obsidian.js'];
 
 self.addEventListener('install', (event) => {
@@ -35,9 +35,10 @@ self.addEventListener('push', (event) => {
       body: data.body,
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
-      // Vibração explícita — sem isso alguns Android tratam a notificação como
-      // silenciosa mesmo com o canal do sistema permitindo som/vibração.
-      vibrate: [300, 100, 300, 100, 300],
+      // Vibração explícita e mais forte (4 pulsos de 400ms) — sem isso alguns
+      // Android tratam a notificação como silenciosa mesmo com o canal do
+      // sistema permitindo som/vibração.
+      vibrate: [400, 150, 400, 150, 400, 150, 400],
       requireInteraction: true,
       data: { url: data.url || '/index.html' },
     })
