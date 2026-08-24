@@ -1,4 +1,4 @@
-const CACHE_NAME = 'agenda-obsidian-v7';
+const CACHE_NAME = 'agenda-obsidian-v8';
 const CORE_ASSETS = ['/index.html', '/style.css', '/js/app.js', '/js/supabase-client.js', '/js/markdown-parser.js', '/js/fs-obsidian.js'];
 
 self.addEventListener('install', (event) => {
@@ -35,10 +35,10 @@ self.addEventListener('push', (event) => {
       body: data.body,
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
-      // Vibração explícita: 3 pulsos de 500ms com pausa de 1s entre eles —
-      // sem isso alguns Android tratam a notificação como silenciosa mesmo
-      // com o canal do sistema permitindo som/vibração.
-      vibrate: [500, 1000, 500, 1000, 500],
+      // Vibração explícita: 3 pulsos LONGOS de 1s (pulsos curtos são pouco
+      // perceptíveis no bolso — a Vibration API não expõe controle de
+      // intensidade/amplitude para PWAs, só duração e intervalo).
+      vibrate: [1000, 400, 1000, 400, 1000],
       requireInteraction: true,
       data: { url: data.url || '/index.html' },
     })
