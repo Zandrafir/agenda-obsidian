@@ -238,12 +238,14 @@ header {
 .field-compromisso-time,
 .field-tarefa-tags,
 .field-compromisso-notes,
+.field-compromisso-reminders,
 .field-tarefa-repeat { display: none; }
 
 form[data-type="tarefa"] .field-tarefa-tags,
 form[data-type="tarefa"] .field-tarefa-repeat { display: block; }
 
-form[data-type="compromisso"] .field-compromisso-notes { display: block; }
+form[data-type="compromisso"] .field-compromisso-notes,
+form[data-type="compromisso"] .field-compromisso-reminders { display: block; }
 
 form[data-type="tarefa"] .form-row .field-tarefa-date { display: block; }
 form[data-type="compromisso"] .form-row .field-compromisso-date,
@@ -255,6 +257,58 @@ form[data-type="tarefa"].has-repeat .form-row .field-tarefa-date { display: none
 .field-error { color: var(--error-soft); }
 
 .repeat-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+
+.reminder-picker { display: flex; gap: 6px; }
+.reminder-picker input[type="number"] { flex: 0 0 64px; min-width: 0; }
+.reminder-picker select {
+  flex: 1;
+  min-width: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 8px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  font-family: inherit;
+}
+.reminder-picker button {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--accent-light);
+  border-radius: 8px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.reminder-picker button:hover { background: var(--card-alt); }
+
+.reminder-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.reminder-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--accent-light);
+  background: rgba(167, 139, 250, .14);
+  padding: 4px 6px 4px 10px;
+  border-radius: 999px;
+}
+.reminder-chip button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px;
+  opacity: .75;
+}
+.reminder-chip button:hover { opacity: 1; }
+
+.badge-reminder { background: rgba(167, 139, 250, .18); color: var(--accent-light); }
 
 .weekday-picker { display: flex; gap: 6px; }
 

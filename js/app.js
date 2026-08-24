@@ -11,6 +11,20 @@ let cachedEvents = [];
 let cachedOccurrences = {}; // task_id -> done (para a data de hoje)
 let activeType = 'tarefa'; // 'tarefa' | 'compromisso'
 let selectedRepeatDays = [];
+let selectedReminders = []; // [{ minutes, label }]
+
+const REMINDER_UNIT_MINUTES = { minutes: 1, hours: 60, days: 60 * 24, weeks: 60 * 24 * 7 };
+
+function reminderPickerLabel(amount, unit) {
+  const plural = amount > 1;
+  const names = {
+    minutes: plural ? 'minutos' : 'minuto',
+    hours: plural ? 'horas' : 'hora',
+    days: plural ? 'dias' : 'dia',
+    weeks: plural ? 'semanas' : 'semana',
+  };
+  return `${amount} ${names[unit]} antes`;
+}
 
 const el = (sel) => document.querySelector(sel);
 const CHECK_SVG = '<svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5L4 7.5L10 1" stroke="#0d1117" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -23,10 +37,26 @@ function todayDateStr() {
 /** Tarefas visíveis hoje: avulsas (sem recorrência) + recorrentes cujo dia da semana bate com hoje. */
 function tasksForToday() {
   const todayWeekday = new Date().getDay();
+  const today = todayDateStr();
   return cachedTasks.filter((t) => {
-    if (!t.recurrence_days || t.recurrence_days.length === 0) return true;
-    return t.recurrence_days.includes(todayWeekday);
+    if (t.recurrence_days && t.recurrence_days.length > 0) return t.recurrence_days.includes(todayWeekday);
+    // Tarefa avulsa concluída em um dia anterior: some da lista pra não acumular lixo.
+    if (t.done && t.due_date && t.due_date < today) return false;
+    return true;
   });
+}
+
+/** Compromissos futuros (ou em andamento) — os que já passaram somem da lista sozinhos. */
+function upcomingEvents() {
+  const nowMs = Date.now();
+  return cachedEvents.filter((e) => new Date(e.start_at).getTime() >= nowMs);
+}
+
+function reminderLabel(minutes) {
+  if (minutes < 60) return `${minutes}min antes`;
+  if (minutes < 60 * 24) return `${Math.round(minutes / 60)}h antes`;
+  if (minutes < 60 * 24 * 7) return `${Math.round(minutes / (60 * 24))}d antes`;
+  return `${Math.round(minutes / (60 * 24 * 7))}sem antes`;
 }
 
 function isTaskDoneToday(task) {
@@ -86,7 +116,7 @@ function renderList() {
       container.innerHTML = '<p class="empty">Nenhuma tarefa por aqui ainda.</p>';
     }
   } else {
-    const sorted = [...cachedEvents].sort((a, b) => a.start_at.localeCompare(b.start_at));
+    const sorted = upcomingEvents().sort((a, b) => a.start_at.localeCompare(b.start_at));
     sorted.forEach((e) => container.appendChild(renderEventItem(e)));
     if (sorted.length === 0) {
       container.innerHTML = '<p class="empty">Nenhum compromisso por aqui ainda.</p>';
@@ -108,12 +138,18 @@ function renderEventItem(event) {
   const day = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
   const isoDate = event.start_at.slice(0, 10);
   const isoTime = event.start_at.slice(11, 16);
+  const reminders = event.remind_before_minutes || [];
+  const remindersHtml = reminders
+    .slice()
+    .sort((a, b) => a - b)
+    .map((m) => `<span class="badge badge-reminder">🔔 ${reminderLabel(m)}</span>`)
+    .join(' ');
 
   li.innerHTML = `
     <div class="item-body">
       <div class="item-view">
         <span class="item-title">${event.title}</span>
-        <div class="item-meta"><span class="item-time">${day} · ${time}</span></div>
+        <div class="item-meta"><span class="item-time">${day} · ${time}</span>${remindersHtml}</div>
       </div>
       <div class="item-edit" hidden>
         <input type="date" class="edit-date" value="${isoDate}" />
@@ -239,6 +275,42 @@ function resetWeekdayPicker() {
   el('#form-item').classList.remove('has-repeat');
 }
 
+// ---------- Seletor de lembretes (minutos/horas/dias/semanas antes do compromisso) ----------
+function renderReminderChips() {
+  const container = el('#reminder-chips');
+  container.innerHTML = '';
+  selectedReminders.forEach((r, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'reminder-chip';
+    chip.innerHTML = `${r.label} <button type="button" aria-label="Remover">✕</button>`;
+    chip.querySelector('button').addEventListener('click', () => {
+      selectedReminders.splice(i, 1);
+      renderReminderChips();
+    });
+    container.appendChild(chip);
+  });
+}
+
+function initReminderPicker() {
+  el('#btn-add-reminder').addEventListener('click', () => {
+    const amount = Number(el('#reminder-amount').value);
+    const unit = el('#reminder-unit').value;
+    if (!amount || amount <= 0) return;
+
+    const minutes = amount * REMINDER_UNIT_MINUTES[unit];
+    if (selectedReminders.some((r) => r.minutes === minutes)) return;
+
+    selectedReminders.push({ minutes, label: reminderPickerLabel(amount, unit) });
+    selectedReminders.sort((a, b) => a.minutes - b.minutes);
+    renderReminderChips();
+  });
+}
+
+function resetReminderPicker() {
+  selectedReminders = [];
+  renderReminderChips();
+}
+
 // ---------- Formulário único (adapta campos conforme a aba ativa) ----------
 function initItemForm() {
   el('#form-item').addEventListener('submit', async (ev) => {
@@ -276,12 +348,14 @@ function initItemForm() {
         title,
         start_at: new Date(`${date}T${time}`).toISOString(),
         notes: form.notes.value.trim() || null,
+        remind_before_minutes: selectedReminders.map((r) => r.minutes),
       });
     }
 
     form.reset();
     form.dataset.type = activeType;
     resetWeekdayPicker();
+    resetReminderPicker();
     await loadAll();
   });
 }
@@ -473,6 +547,7 @@ async function main() {
   initServiceWorkerAutoReload();
   initTypeTabs();
   initWeekdayPicker();
+  initReminderPicker();
   initItemForm();
   initVaultCard();
   await initPush();

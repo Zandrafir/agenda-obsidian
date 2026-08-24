@@ -43,6 +43,21 @@
       <input type="text" name="tags" placeholder="tags separadas por vírgula" class="field-tarefa-tags" />
       <textarea name="notes" placeholder="Notas (opcional)" class="field-compromisso-notes"></textarea>
 
+      <div class="field-compromisso-reminders">
+        <div class="repeat-label">Lembrar-me antes</div>
+        <div class="reminder-picker">
+          <input type="number" id="reminder-amount" min="1" value="1" />
+          <select id="reminder-unit">
+            <option value="minutes">minutos</option>
+            <option value="hours" selected>horas</option>
+            <option value="days">dias</option>
+            <option value="weeks">semanas</option>
+          </select>
+          <button type="button" id="btn-add-reminder">Adicionar</button>
+        </div>
+        <div class="reminder-chips" id="reminder-chips"></div>
+      </div>
+
       <div class="field-tarefa-repeat">
         <div class="repeat-label">Repetir</div>
         <div class="weekday-picker" id="weekday-picker">

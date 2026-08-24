@@ -33,6 +33,7 @@ create table if not exists events (
   start_at timestamptz not null,
   end_at timestamptz,
   notes text,
+  remind_before_minutes int[] not null default '{}', -- lembretes extras (em minutos) antes do início
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -48,6 +49,7 @@ create table if not exists push_log (
   id bigint generated always as identity primary key,
   task_id bigint references tasks(id) on delete cascade,
   event_id bigint references events(id) on delete cascade,
+  reminder_offset int, -- minutos antes do evento (null = aviso "em breve" padrão)
   sent_at timestamptz not null default now()
 );
 

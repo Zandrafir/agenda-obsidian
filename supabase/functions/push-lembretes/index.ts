@@ -2,11 +2,20 @@
 // ou o comando cron.schedule mencionado no README para o schedule exato).
 //
 // Comportamento:
-//  - Antes das 21h: aviso único (dedup via push_log) quando uma tarefa vence hoje,
-//    e aviso único quando um compromisso está a até 20min de começar.
-//  - A partir das 21h: "cobrança" insistente — se ainda existir tarefa com
-//    due_date = hoje e done = false, reenvia a notificação em TODA execução do
-//    cron (sem dedup), até o usuário marcar todas como concluídas no app.
+//  - Tarefas: antes das 21h, aviso único (dedup via push_log) quando uma tarefa
+//    vence hoje. A partir das 21h, "cobrança" insistente — reenvia a notificação
+//    em TODA execução do cron (sem dedup) enquanto existir tarefa com due_date
+//    = hoje e done = false, até o usuário marcar todas como concluídas no app.
+//  - Compromissos: roda em TODA execução do cron, independente da hora do dia
+//    (bug anterior: os compromissos só eram checados no branch "antes das 21h",
+//    então depois das 21h nunca notificavam). Dois tipos de aviso, cada um com
+//    dedup próprio em push_log:
+//      1. Aviso padrão "em breve" quando o compromisso está a até 20min de
+//         começar (janela com lookback de 30min pra não perder eventos criados
+//         em cima da hora).
+//      2. Lembretes extras configurados em events.remind_before_minutes (ex.:
+//         30min, 1h, 1 dia, 1 semana antes) — dispara quando o horário-alvo
+//         (start_at - offset) cai dentro da janela do tick atual do cron.
 //
 // Envio de push implementado manualmente com a Web Crypto API nativa do Deno
 // (RFC 8291 aes128gcm + RFC 8292 VAPID), em vez do pacote npm "web-push": esse
@@ -210,25 +219,34 @@ async function sendToAllSubscriptions(subscriptions: any[], payload: { title: st
   }
 }
 
+/** Formata o título do aviso de lembrete conforme a antecedência configurada. */
+function reminderTitle(offsetMinutes: number): string {
+  if (offsetMinutes < 60) return `🔔 Compromisso em ${offsetMinutes}min`;
+  if (offsetMinutes < 24 * 60) {
+    const hours = Math.round(offsetMinutes / 60);
+    return `🔔 Compromisso em ${hours}h`;
+  }
+  const days = Math.round(offsetMinutes / (24 * 60));
+  if (days < 7) return `🔔 Compromisso em ${days} dia${days > 1 ? 's' : ''}`;
+  const weeks = Math.round(days / 7);
+  return `🔔 Compromisso em ${weeks} semana${weeks > 1 ? 's' : ''}`;
+}
+
 Deno.serve(async () => {
   const now = new Date();
+  const nowMs = now.getTime();
   const { dateStr: today, hour: currentHour } = localDateAndHour(now, TIMEZONE);
-  const in20min = new Date(now.getTime() + 20 * 60 * 1000).toISOString();
-  // Início da janela no passado: cobre o caso de um evento criado com pouca
-  // antecedência cujo horário já passou até o próximo tick do cron (que roda
-  // a cada 5min em marcos fixos, não sob demanda na criação).
-  const lookback30min = new Date(now.getTime() - 30 * 60 * 1000).toISOString();
-  const nowIso = now.toISOString();
 
   const subscriptions = await rest('push_subscriptions?select=id,subscription');
   let sentCount = 0;
   const errors: string[] = [];
 
+  // ---------- Tarefas ----------
+  const openTasks = await rest(`tasks?select=id,title&due_date=eq.${today}&done=eq.false`);
+
   if (currentHour >= NAG_START_HOUR) {
     // Cobrança insistente: sem dedup, repete a cada execução do cron enquanto
     // existir tarefa aberta com prazo hoje.
-    const openTasks = await rest(`tasks?select=id,title&due_date=eq.${today}&done=eq.false`);
-
     if (openTasks.length > 0) {
       const body = openTasks.length === 1
         ? `"${openTasks[0].title}" ainda está pendente hoje!`
@@ -238,28 +256,56 @@ Deno.serve(async () => {
       sentCount += 1;
     }
   } else {
-    // Antes das 21h: aviso único por tarefa/evento (deduplicado via push_log).
-    const [dueTasks, upcomingEvents, alreadySent] = await Promise.all([
-      rest(`tasks?select=id,title&due_date=eq.${today}&done=eq.false`),
-      rest(`events?select=id,title,start_at&start_at=gte.${lookback30min}&start_at=lte.${in20min}`),
-      rest('push_log?select=task_id,event_id'),
-    ]);
+    // Antes das 21h: aviso único por tarefa (deduplicado via push_log).
+    const alreadySentTasks = await rest('push_log?select=task_id&task_id=not.is.null');
+    const sentTaskIds = new Set(alreadySentTasks.map((l: any) => l.task_id));
 
-    const sentTaskIds = new Set(alreadySent.map((l: any) => l.task_id).filter(Boolean));
-    const sentEventIds = new Set(alreadySent.map((l: any) => l.event_id).filter(Boolean));
+    for (const t of openTasks.filter((t: any) => !sentTaskIds.has(t.id))) {
+      await sendToAllSubscriptions(subscriptions, { title: 'Tarefa com prazo hoje', body: t.title }, errors);
+      await restPost('push_log', { task_id: t.id });
+      sentCount += 1;
+    }
+  }
 
-    const notifications = [
-      ...dueTasks.filter((t: any) => !sentTaskIds.has(t.id)).map((t: any) => ({
-        kind: 'task', id: t.id, title: 'Tarefa com prazo hoje', body: t.title,
-      })),
-      ...upcomingEvents.filter((e: any) => !sentEventIds.has(e.id)).map((e: any) => ({
-        kind: 'event', id: e.id, title: 'Compromisso em breve', body: e.title,
-      })),
-    ];
+  // ---------- Compromissos (roda sempre, independente da hora) ----------
+  // Início da janela no passado: cobre o caso de um evento criado com pouca
+  // antecedência cujo horário já passou até o próximo tick do cron (que roda
+  // a cada 5min em marcos fixos, não sob demanda na criação).
+  const lookback30min = new Date(nowMs - 30 * 60 * 1000).toISOString();
+  // Horizonte futuro largo o bastante pra cobrir o maior lembrete configurável (1 semana).
+  const horizonEnd = new Date(nowMs + 8 * 24 * 60 * 60 * 1000).toISOString();
 
-    for (const notif of notifications) {
-      await sendToAllSubscriptions(subscriptions, { title: notif.title, body: notif.body }, errors);
-      await restPost('push_log', notif.kind === 'task' ? { task_id: notif.id } : { event_id: notif.id });
+  const [events, eventLogs] = await Promise.all([
+    rest(`events?select=id,title,start_at,remind_before_minutes&start_at=gte.${lookback30min}&start_at=lte.${horizonEnd}`),
+    rest('push_log?select=event_id,reminder_offset&event_id=not.is.null'),
+  ]);
+
+  const sentEventKeys = new Set(eventLogs.map((l: any) => `${l.event_id}:${l.reminder_offset ?? 'near'}`));
+  const TICK_HALF_WINDOW_MS = 5 * 60 * 1000; // cron roda a cada 5min
+
+  for (const e of events) {
+    const startMs = new Date(e.start_at).getTime();
+
+    // Aviso padrão "em breve" perto do horário do compromisso.
+    if (startMs >= nowMs - 30 * 60 * 1000 && startMs <= nowMs + 20 * 60 * 1000) {
+      const key = `${e.id}:near`;
+      if (!sentEventKeys.has(key)) {
+        await sendToAllSubscriptions(subscriptions, { title: 'Compromisso em breve', body: e.title }, errors);
+        await restPost('push_log', { event_id: e.id, reminder_offset: null });
+        sentCount += 1;
+      }
+    }
+
+    // Lembretes extras configurados pelo usuário (minutos/horas/dias/semanas antes).
+    for (const offset of e.remind_before_minutes || []) {
+      const targetMs = startMs - offset * 60 * 1000;
+      if (targetMs < nowMs - TICK_HALF_WINDOW_MS || targetMs > nowMs + TICK_HALF_WINDOW_MS) continue;
+
+      const key = `${e.id}:${offset}`;
+      if (sentEventKeys.has(key)) continue;
+
+      await sendToAllSubscriptions(subscriptions, { title: reminderTitle(offset), body: e.title }, errors);
+      await restPost('push_log', { event_id: e.id, reminder_offset: offset });
       sentCount += 1;
     }
   }
